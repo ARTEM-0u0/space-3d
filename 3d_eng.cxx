@@ -2,6 +2,8 @@
 #include "list.cxx"
 #include <sstream>
 #include <fstream>
+
+//структура полигона с функциями для работы с ними
 struct polygon
 {
 	public:
@@ -15,13 +17,13 @@ struct polygon
 	void add(vec3<float> num){a+=num;b+=num;c+=num;}
 	void sub(vec3<float> num){a-=num;b-=num;c-=num;}
 	void mul(vec3<float> num){a*=num;b*=num;c*=num;}
-	void div(vec3<float> num){a/=num;b/=num;c/=num;}
+	void div(vec3<float> num){if(num!=0){a/=num;b/=num;c/=num;}}
 	void mul(float num){a*=num;b*=num;c*=num;}
-	void centr(){sub((a+b+c)/3);}
-	void rotxy(float ag){a=a.rotxy(ag);b=b.rotxy(ag);c=c.rotxy(ag);}
-	void rotyz(float ag){a=a.rotyz(ag);b=b.rotyz(ag);c=c.rotyz(ag);}
-	void rotzx(float ag){a=a.rotzx(ag);b=b.rotzx(ag);c=c.rotzx(ag);}
-	void rotate(vec3<float> u,float ag){a=a.rotate(u,ag);b=b.rotate(u,ag);c=c.rotate(u,ag);}
+	void centr(){sub((a+b+c)/3);} //центрирует полигон
+	void rotxy(float ag){a=a.rotxy(ag);b=b.rotxy(ag);c=c.rotxy(ag);}//вращение по оси z
+	void rotyz(float ag){a=a.rotyz(ag);b=b.rotyz(ag);c=c.rotyz(ag);}//вращение по оси x
+	void rotzx(float ag){a=a.rotzx(ag);b=b.rotzx(ag);c=c.rotzx(ag);}//вращение по оси y
+	void rotate(vec3<float> u,float ag){a=a.rotate(u,ag);b=b.rotate(u,ag);c=c.rotate(u,ag);}//вращение по свободной оси
 
 	string info(){
 		string str="";
@@ -29,53 +31,60 @@ struct polygon
 		str+=to_string(b.x)+' '+to_string(b.y)+' '+to_string(b.z)+'\n';
 		str+=to_string(c.x)+' '+to_string(c.y)+' '+to_string(c.z)+'\n';
 		return str;
+	}//для отладки и логирования
+	
+	void screen(float l,float ept){
+		//проверка на ноль
+		if(abs(a.z)<ept){a.z+=ept;}
+		if(abs(b.z)<ept){b.z+=ept;}
+		if(abs(c.z)<ept){c.z+=ept;}
+		//проецирование с перспективой
+		a=vec3<float>{0,0,a.z}+a.screen(l);
+		b=vec3<float>{0,0,b.z}+b.screen(l);
+		c=vec3<float>{0,0,c.z}+c.screen(l);
 	}
-	void screen(float l,float ept){if(abs(a.z)<ept){a.z+=ept;}if(abs(b.z)<ept){b.z+=ept;}if(abs(c.z)<ept){c.z+=ept;}
-	a=vec3<float>{0,0,a.z}+a.screen(l);b=vec3<float>{0,0,b.z}+b.screen(l);c=vec3<float>{0,0,c.z}+c.screen(l);}
 };
-struct ver_id
-{
-	public:
-	int a;
-	int b;
-	int c;
-	ver_id(){}
-	ver_id(int A,int B,int C){a=A;b=B;c=C;}
-};
+//3д модель и функции для работы с ней
 struct model
 {
+	//вершины и полигоны как в файле типа .obj
 	vec3<float>* verticles = nullptr;
-    ver_id* polygons = nullptr;
+    vec3<int>* polygons = nullptr;
     
+    //имя файла из которого импортировалось
 	string name="";
 	
+	//кол-во вершин и полигонов
     int vert_count = 0;
     int poly_count = 0;
 
     model() {}
 	model(const model& m)
 	{
+		//копирование модели
 		vert_count = m.vert_count;
 		poly_count = m.poly_count;
 		name = m.name;
 		
 		verticles = new vec3<float>[vert_count];
-		polygons  = new ver_id[poly_count];
+		polygons  = new vec3<int>[poly_count];
 		
 		for(int i = 0; i < vert_count; i++)
 		{verticles[i] = m.verticles[i];}
 		
 		for(int i = 0; i < poly_count; i++)
 		{polygons[i] = m.polygons[i];}
-}
-	model& operator=(const model&) = delete;
+	}
+	model& operator=(const model&) = delete;//чтоб правильно копировали
     ~model()
     {
+        //деструктор
         delete[] verticles;
         delete[] polygons;
     }
     void copy(model* m)
     {
+    	//старое копирование модели
     	vert_count=m->vert_count;
     	poly_count=m->poly_count;
     	
@@ -115,6 +124,7 @@ struct model
     }
     void centr()
     {
+    	//центрирование модели
     	vec3<float> cenrtal;
     	for(int i=0;i<vert_count;i++)
     	{
@@ -155,6 +165,7 @@ struct model
     }
     float size(float l)
     {
+    	//определение размера модели на экране
     	float max_x=0;
     	float min_x=0;
     	
@@ -181,6 +192,7 @@ struct model
     }
     bool import(const string& filename)
     {
+        //импортирование .obj файла
         ifstream file(filename);
         if (!file.is_open())
             return 0;
@@ -246,6 +258,7 @@ struct model
         return 1;
     }
 };
+//объект имеет в себе модель и ее параметры расположения
 class obj
 {
 	public:
@@ -260,13 +273,15 @@ class obj
 		pos=Pos;rot=Rot;
 	}
 };
+//сцена имеет параметры расположения камеры и списки моделей и объектов
 class scene
 {
 	public:
-	
+	//списки
 	list<model*> models;
 	list<obj> objects;
 	
+	//камера
 	vec3<float> cam_pos={0,0,0};
 	vec3<float> cam_rot={0,0,0};
 	
@@ -282,10 +297,11 @@ class scene
 	{
 		objects.get_data(index)->set(pos,rot);
 	}
+	//добавление объекта и подключение к нему новою или существующюю модель
 	void add_obj(string name)
 	{
 		node<model*>* current = models.top;
-		for(int i = 0; i < models.count; i++)
+		for(int i = 0; i < models.count; i++)//проверка на существующюю модель
 		{
 			if(current->data->name == name)
 			{
@@ -295,7 +311,7 @@ class scene
 			current = current->next;
 		}
 		model* m = new model();
-		if(m->import(name))
+		if(m->import(name))//добавление модели
 		{
 			models.add(m);
 			objects.add(obj(m));
@@ -305,6 +321,7 @@ class scene
 			delete m;
 		}
 	}
+	//удаление объекта и модели которая подключена только к этому объекту
 	void remove_obj(int index)
 	{
 		node<obj>* current=objects.top;
@@ -314,7 +331,7 @@ class scene
 		int num=0;
 		int index_model=0;
 		
-		for(int i=0;i<objects.count;i++)
+		for(int i=0;i<objects.count;i++)//считывание кол-во подключений модели
 		{
 			if(current->data.obj_mod->name==test->data.obj_mod->name)
 			{
@@ -323,7 +340,7 @@ class scene
 			current=current->next;
 		}
 		
-		for(int i=0;i<models.count;i++)
+		for(int i=0;i<models.count;i++)//определение индекса модели
 		{
 			if(test->data.obj_mod==cur_mod->data)
 			{
@@ -333,31 +350,32 @@ class scene
 			cur_mod=cur_mod->next;
 		}
 		
-		if(num<=1)
+		if(num<=1)//удаление модели по индексу
 		{
-			
-    delete models.get(index_model)->data; // сначала delete model*
-    models.remove(index_model);           // потом убрать из списка
-
+			delete models.get(index_model)->data; // сначала delete model*
+			models.remove(index_model);           // потом убрать из списка
 		}
-		cout<<num<<' '<<index_model<<' '<<index<<'\n';
+	//	cout<<num<<' '<<index_model<<' '<<index<<'\n';
 		objects.remove(index);
 	}
 	
 };
+//экран
 class screen
 {
 	public:
 	char* text;
-	const char palete[17]=" .,-:_;!/){UG&#@";
+	const char palete[17]=" .,-:_;!/){UG&#@";//палитра яркостей
 	int size_x=0;
 	int size_y=0;
 	
+	//создания массива экрана
 	screen(int size_x, int size_y){
 		this->size_x=size_x;
 		this->size_y=size_y;
 		text=new char[(size_x+1)*size_y];}
-		
+	
+	//заполнение экрана
 	void fill(char sym)
 	{
 		for(int i=0;i<size_y;i++)
@@ -369,11 +387,13 @@ class screen
 			text[i*(size_x+1)+size_x]='\n';
 		}
 	}
+	//отрисовка точки по координатам x и y
 	void draw_dot(int x, int y, char sym)
 	{
 		if(x>=0 && x<size_x && y>=0 && y<size_y)
 		text[x+y*(size_x+1)]=sym;
 	}
+	//отрисовка линии алгоритмом брезенхема
 	void draw_line(int x1, int y1, int x2, int y2, char sym)
 	{
 		int dx = abs(x2 - x1);
@@ -400,6 +420,7 @@ class screen
 			}
 		}
 	}
+	//код для алгоритма коэна сазерленда
 	int computeCode(float x, float y, float xmin, float ymin, float xmax, float ymax) {
 		int code = 0;
 		if (x < xmin) code |= 1;
@@ -408,6 +429,7 @@ class screen
 		else if (y > ymax) code |= 8;
 		return code;
 	}
+	//отсечение линий
 	bool cohenSutherlandClip(float &x1, float &y1, float &x2, float &y2,float xmin, float ymin, float xmax, float ymax) {
 		int code1 = computeCode(x1, y1, xmin, ymin, xmax, ymax);
 		int code2 = computeCode(x2, y2, xmin, ymin, xmax, ymax);
@@ -453,6 +475,7 @@ class screen
 		}
 		return accept;
 	}
+	//отрисовка линии с алгоритмом коэна
 	void processLineSegment(float x1, float y1, float x2, float y2,char ch) {
 		float xmin = 0, ymin = 0;
 		float xmax = size_x, ymax = size_y;
@@ -462,24 +485,14 @@ class screen
 			draw_line(clipped_x1, clipped_y1, clipped_x2, clipped_y2,ch);
 		} 
 	}
-	void draw_poly_norm(polygon p,float l,char sym,bool m)
-	{
-		vec3<float> v1=p.b-p.a;
-		vec3<float> v2=p.c-p.a;
-        
-		 vec3<float> n={v1.y*v2.z-v1.z*v2.y,
-		 						v1.z*v2.x-v1.x*v2.z,
-		 						v1.x*v2.y-v1.y*v2.x};
-		 n=n.norm();
-		 n=n.mln(m*2-1);
-		 if(n.scalar(p.a)<0)draw_poly(p,l,sym);
-	}
+	//отрисовка полигона с проецированием на z если надо
 	void draw_poly(polygon p,float l,char sym)
 	{
 		float ept=0.001;
 		vec3<float> a;
 		vec3<float> b;
-		if(p.a.z>ept&&p.b.z>ept){
+		//1 линия
+		if(p.a.z>ept&&p.b.z>ept){//2 точки перед камерой
 			a={p.a.x,p.a.y,p.a.z};
 			b={p.b.x,p.b.y,p.b.z};
 			a=a.screen(l);
@@ -489,7 +502,7 @@ class screen
 			a=a.mul(vec3<float>(size_x/2,size_y/2,1));
 			b=b.mul(vec3<float>(size_x/2,size_y/2,1));
 			processLineSegment(a.x,a.y,b.x,b.y,sym);
-		}else if(p.a.z*p.b.z<=ept){
+		}else if(p.a.z*p.b.z<=ept){//1 точка за камерой, 1 перед (проецирование)
 			float dz=p.b.z-p.a.z;
 			if(abs(dz)<ept)dz=ept;
 			float t=-p.a.z/dz;
@@ -509,8 +522,8 @@ class screen
 			b=b.mul(vec3<float>(size_x/2,size_y/2,1));
 			processLineSegment(a.x,a.y,b.x,b.y,sym);
 		}
-		
-		if(p.b.z>ept&&p.c.z>ept){
+		//2 линия
+		if(p.b.z>ept&&p.c.z>ept){//1 точка за камерой, 1 перед (проецирование)
 			a={p.b.x,p.b.y,p.b.z};
 			b={p.c.x,p.c.y,p.c.z};
 			a=a.screen(l);
@@ -520,7 +533,7 @@ class screen
 			a=a.mul(vec3<float>(size_x/2,size_y/2,1));
 			b=b.mul(vec3<float>(size_x/2,size_y/2,1));
 			processLineSegment(a.x,a.y,b.x,b.y,sym);
-		}else if(p.b.z*p.c.z<=ept){
+		}else if(p.b.z*p.c.z<=ept){//1 точка за камерой, 1 перед (проецирование)
 			float dz=p.c.z-p.b.z;
 			if(abs(dz)<ept)dz=ept;
 			float t=-p.b.z/dz;	
@@ -540,8 +553,8 @@ class screen
 			b=b.mul(vec3<float>(size_x/2,size_y/2,1));
 			processLineSegment(a.x,a.y,b.x,b.y,sym);
 		}
-		
-		if(p.c.z>ept&&p.a.z>ept){
+		//3 линия
+		if(p.c.z>ept&&p.a.z>ept){//1 точка за камерой, 1 перед (проецирование)
 			a={p.c.x,p.c.y,p.c.z};
 			b={p.a.x,p.a.y,p.a.z};
 			a=a.screen(l);
@@ -551,7 +564,7 @@ class screen
 			a=a.mul(vec3<float>(size_x/2,size_y/2,1));
 			b=b.mul(vec3<float>(size_x/2,size_y/2,1));
 			processLineSegment(a.x,a.y,b.x,b.y,sym);
-		}else if(p.c.z*p.a.z<=ept){
+		}else if(p.c.z*p.a.z<=ept){//1 точка за камерой, 1 перед (проецирование)
 			float dz=p.a.z-p.c.z;
 			if(abs(dz)<ept)dz=ept;
 			float t=-p.c.z/dz;	
@@ -573,7 +586,21 @@ class screen
 		}
 		
 	}
-	void draw_obj(model* Obj,float l)
+	//расчет номали и отрисовка
+	void draw_poly_norm(polygon p,float l,char sym,bool m)
+	{
+		vec3<float> v1=p.b-p.a;
+		vec3<float> v2=p.c-p.a;
+        
+		 vec3<float> n={v1.y*v2.z-v1.z*v2.y,
+		 						v1.z*v2.x-v1.x*v2.z,
+		 						v1.x*v2.y-v1.y*v2.x};
+		 n=n.norm();
+		 n=n.mln(m*2-1);
+		 if(n.scalar(p.a)<0)draw_poly(p,l,sym);
+	}
+	//отрисовка модели
+	void draw_model(model* Obj,float l)
 	{
 		
 		for(int i=0;i<Obj->poly_count;i++)
@@ -586,7 +613,8 @@ class screen
 			}
 		}
 	}
-	void draw_obj_norm(model* Obj,float l,bool m)
+	//отрисовка модели с нормалями (m: направление нормали (внутрь/наружу))
+	void draw_model_norm(model* Obj,float l,bool m)
 	{
 		float target=0.05;
 		if(Obj->size(l)>target)
@@ -606,25 +634,28 @@ class screen
 							   palete[int(Obj->size(l)/target*16)]);
 		}
 	}
+	//отрисовка сцены
 	void draw_scene(scene* scn, float l)
 	{
 		node<obj>* current = scn->objects.top;
 		for(int i = 0; i < scn->objects.count; i++)
 		{
-			 model temp = *current->data.obj_mod;   // копия на стеке
+			 model temp = *current->data.obj_mod;
+			 if(model!=nullptr)
+			 {//тут все перемещение объектов и камеры
+				 temp.rotxy(current->data.rot.z);
+				 temp.rotyz(current->data.rot.x);
+				 temp.rotzx(current->data.rot.y);
 			 
-			 temp.rotxy(current->data.rot.z);
-			 temp.rotyz(current->data.rot.x);
-			 temp.rotzx(current->data.rot.y);
+				 temp.add(current->data.pos);
+				 temp.add(-scn->cam_pos);
 			 
-			 temp.add(current->data.pos);
-			 temp.add(-scn->cam_pos);
+				 temp.rotxy(-scn->cam_rot.z);
+				 temp.rotyz(-scn->cam_rot.x);
+			 	temp.rotzx(-scn->cam_rot.y);
 			 
-			 temp.rotxy(-scn->cam_rot.z);
-			 temp.rotyz(-scn->cam_rot.x);
-			 temp.rotzx(-scn->cam_rot.y);
-			 
- 			draw_obj(&temp, l);
+ 				draw_model(&temp, l);
+			 }
  			current = current->next;
 		}
 	}

@@ -14,15 +14,11 @@ class list
 	node<T>* top=nullptr;
 	~list()
 	{
-		node<T>* tops;
-		for(int i=0;i<count;i++)
-		{
-			tops=top;
-			top=top->next;
-			delete tops;
-			if(top==nullptr){break;}
+		while(top) {
+			node<T>* tmp = top;
+			top = top->next;
+			delete tmp;
 		}
-		count=0;
 	}
 	void add(const T& data)
 	{

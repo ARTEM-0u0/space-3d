@@ -17,7 +17,7 @@ struct polygon
 	void add(vec3<float> num){a+=num;b+=num;c+=num;}
 	void sub(vec3<float> num){a-=num;b-=num;c-=num;}
 	void mul(vec3<float> num){a*=num;b*=num;c*=num;}
-	void div(vec3<float> num){if(num!=0){a/=num;b/=num;c/=num;}}
+	void div(vec3<float> num){a/=num;b/=num;c/=num;}
 	void mul(float num){a*=num;b*=num;c*=num;}
 	void centr(){sub((a+b+c)/3);} //центрирует полигон
 	void rotxy(float ag){a=a.rotxy(ag);b=b.rotxy(ag);c=c.rotxy(ag);}//вращение по оси z
@@ -89,7 +89,7 @@ struct model
     	poly_count=m->poly_count;
     	
     	verticles=new vec3<float>[m->vert_count]; 
-    	polygons=new ver_id[m->poly_count];
+    	polygons=new vec3<int>[m->poly_count];
     	
     	for(int i=0;i<m->vert_count;i++)
     	{
@@ -217,7 +217,7 @@ struct model
             return 0;
 
         verticles = new vec3<float>[vert_count];
-        polygons = new ver_id[poly_count];
+        polygons = new vec3<int>[poly_count];
 
         // ===== второй проход: заполняем =====
         file.open(filename);
@@ -246,9 +246,9 @@ struct model
                 string s1, s2, s3;
                 ss >> s1 >> s2 >> s3;
 
-                polygons[f_i].a = stoi(s1.substr(0, s1.find('/'))) - 1;
-                polygons[f_i].b = stoi(s2.substr(0, s2.find('/'))) - 1;
-                polygons[f_i].c = stoi(s3.substr(0, s3.find('/'))) - 1;
+                polygons[f_i].x = stoi(s1.substr(0, s1.find('/'))) - 1;
+                polygons[f_i].y = stoi(s2.substr(0, s2.find('/'))) - 1;
+                polygons[f_i].z = stoi(s3.substr(0, s3.find('/'))) - 1;
 
                 f_i++;
             }
@@ -605,11 +605,11 @@ class screen
 		
 		for(int i=0;i<Obj->poly_count;i++)
 		{
-			if(Obj->vert_count>Obj->polygons[i].a&&Obj->vert_count>Obj->polygons[i].b&&Obj->vert_count>Obj->polygons[i].c)
+			if(Obj->vert_count>Obj->polygons[i].x&&Obj->vert_count>Obj->polygons[i].y&&Obj->vert_count>Obj->polygons[i].z)
 			{
 				polygon p={{0,0,0},{0,0,0},{0,0,0}};
-				p={Obj->verticles[Obj->polygons[i].a],Obj->verticles[Obj->polygons[i].b],Obj->verticles[Obj->polygons[i].c],};
-				draw_poly(p,l,palete[(Obj->polygons[i].a+Obj->polygons[i].b+Obj->polygons[i].c)%15+1]);
+				p={Obj->verticles[Obj->polygons[i].x],Obj->verticles[Obj->polygons[i].y],Obj->verticles[Obj->polygons[i].z],};
+				draw_poly(p,l,palete[(Obj->polygons[i].x+Obj->polygons[i].y+Obj->polygons[i].z)%15+1]);
 			}
 		}
 	}
@@ -621,11 +621,11 @@ class screen
 		{
 			for(int i=0;i<Obj->poly_count;i++)
 			{
-				if(Obj->vert_count>Obj->polygons[i].a&&Obj->vert_count>Obj->polygons[i].b&&Obj->vert_count>Obj->polygons[i].c)
+				if(Obj->vert_count>Obj->polygons[i].x&&Obj->vert_count>Obj->polygons[i].y&&Obj->vert_count>Obj->polygons[i].z)
 				{
 					polygon p={{0,0,0},{0,0,0},{0,0,0}};
-					p={Obj->verticles[Obj->polygons[i].a],Obj->verticles[Obj->polygons[i].b],Obj->verticles[Obj->polygons[i].c],};
-					draw_poly_norm(p,l,palete[(Obj->polygons[i].a+Obj->polygons[i].b+Obj->polygons[i].c)%15+1],m);
+					p={Obj->verticles[Obj->polygons[i].x],Obj->verticles[Obj->polygons[i].y],Obj->verticles[Obj->polygons[i].z],};
+					draw_poly_norm(p,l,palete[(Obj->polygons[i].x+Obj->polygons[i].y+Obj->polygons[i].z)%15+1],m);
 				}
 			}
 		}else{
@@ -641,7 +641,7 @@ class screen
 		for(int i = 0; i < scn->objects.count; i++)
 		{
 			 model temp = *current->data.obj_mod;
-			 if(model!=nullptr)
+			 if(temp.name.size()>0)
 			 {//тут все перемещение объектов и камеры
 				 temp.rotxy(current->data.rot.z);
 				 temp.rotyz(current->data.rot.x);

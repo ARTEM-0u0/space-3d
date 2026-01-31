@@ -31,8 +31,7 @@ struct polygon
 		return str;
 	}
 	void screen(float l,float ept){if(abs(a.z)<ept){a.z+=ept;}if(abs(b.z)<ept){b.z+=ept;}if(abs(c.z)<ept){c.z+=ept;}
-	a=vec3<float>{0,0,a.z}+a.screen(l);b=vec3<float>{0,0,b.z}+b.screen(l);c=vec3<float>{0,0,c.z}+=
-	c.screen(l);}
+	a=vec3<float>{0,0,a.z}+a.screen(l);b=vec3<float>{0,0,b.z}+b.screen(l);c=vec3<float>{0,0,c.z}+c.screen(l);}
 };
 struct ver_id
 {
@@ -54,7 +53,21 @@ struct model
     int poly_count = 0;
 
     model() {}
-	model(const model&) = delete;
+	model(const model& m)
+	{
+		vert_count = m.vert_count;
+		poly_count = m.poly_count;
+		name = m.name;
+		
+		verticles = new vec3<float>[vert_count];
+		polygons  = new ver_id[poly_count];
+		
+		for(int i = 0; i < vert_count; i++)
+		{verticles[i] = m.verticles[i];}
+		
+		for(int i = 0; i < poly_count; i++)
+		{polygons[i] = m.polygons[i];}
+}
 	model& operator=(const model&) = delete;
     ~model()
     {
@@ -67,7 +80,7 @@ struct model
     	poly_count=m->poly_count;
     	
     	verticles=new vec3<float>[m->vert_count]; 
-    	polygons=new ver_id[m->vert_count];
+    	polygons=new ver_id[m->poly_count];
     	
     	for(int i=0;i<m->vert_count;i++)
     	{
@@ -242,6 +255,10 @@ class obj
 	vec3<float> rot={0,0,0};
 	
 	obj(model* m){obj_mod=m;}
+	void set(vec3<float> Pos, vec3<float> Rot)
+	{
+		pos=Pos;rot=Rot;
+	}
 };
 class scene
 {
@@ -257,34 +274,37 @@ class scene
 	
 	~scene() = default;
 	
+	void set_cam(vec3<float> pos, vec3<float> rot)
+	{
+		cam_pos=pos;cam_rot=rot;
+	}
+	void set_obj(int index, vec3<float> pos, vec3<float> rot)
+	{
+		objects.get_data(index)->set(pos,rot);
+	}
 	void add_obj(string name)
-{
-    node<model*>* current = models.top;
-
-    // 1. Ищем уже загруженную модель
-    for(int i = 0; i < models.count; i++)
-    {
-        if(current->data->name == name)
-        {
-            objects.add(obj(current->data));
-            return;
-        }
-        current = current->next;
-    }
-
-    // 2. Если не нашли — загружаем новую
-    model* m = new model();
-
-    if(m->import(name))
-    {
-        models.add(m);
-        objects.add(obj(m));
-    }
-    else
-    {
-        delete m; // чтобы не было утечки
-    }
-}
+	{
+		node<model*>* current = models.top;
+		for(int i = 0; i < models.count; i++)
+		{
+			if(current->data->name == name)
+			{
+				objects.add(obj(current->data));
+				return;
+			}
+			current = current->next;
+		}
+		model* m = new model();
+		if(m->import(name))
+		{
+			models.add(m);
+			objects.add(obj(m));
+		}
+		else
+		{
+			delete m;
+		}
+	}
 	void remove_obj(int index)
 	{
 		node<obj>* current=objects.top;
@@ -351,6 +371,7 @@ class screen
 	}
 	void draw_dot(int x, int y, char sym)
 	{
+		if(x>=0 && x<size_x && y>=0 && y<size_y)
 		text[x+y*(size_x+1)]=sym;
 	}
 	void draw_line(int x1, int y1, int x2, int y2, char sym)
@@ -585,21 +606,26 @@ class screen
 							   palete[int(Obj->size(l)/target*16)]);
 		}
 	}
-	void draw_scene(scene* scn,float l)
+	void draw_scene(scene* scn, float l)
 	{
-		node<obj>* current=scn->objects.top;
-		for(int i=0;i<scn->objects.count;i++)
+		node<obj>* current = scn->objects.top;
+		for(int i = 0; i < scn->objects.count; i++)
 		{
-			model* m=new model();
-			m->copy(current->data.obj_mod);
-			for(int i=0;i<m->vert_count;i++)
-			{
-				m->verticles[i]=m->verticles[i].add(current->data.pos);
-			}
-			draw_obj(m,l);
-			m->~model();
-			delete m;
-			current=current->next;
+			 model temp = *current->data.obj_mod;   // копия на стеке
+			 
+			 temp.rotxy(current->data.rot.z);
+			 temp.rotyz(current->data.rot.x);
+			 temp.rotzx(current->data.rot.y);
+			 
+			 temp.add(current->data.pos);
+			 temp.add(-scn->cam_pos);
+			 
+			 temp.rotxy(-scn->cam_rot.z);
+			 temp.rotyz(-scn->cam_rot.x);
+			 temp.rotzx(-scn->cam_rot.y);
+			 
+ 			draw_obj(&temp, l);
+ 			current = current->next;
 		}
 	}
 };
